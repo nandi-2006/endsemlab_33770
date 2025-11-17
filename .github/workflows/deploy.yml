@@ -1,30 +1,42 @@
-name: Deploy Vite App to GitHub Pages
+name: Build and Deploy to gh-pages
 
 on:
   push:
-    branches: [main]
+    branches: [ main, master ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: '18'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build project
+      - name: Build
         run: npm run build
 
-      - name: Deploy to GitHub Pages
+      - name: Ensure DEPLOY_PAT is set
+        env:
+          DEPLOY_PAT: ${{ secrets.DEPLOY_PAT }}
+        run: |
+          if [ -z "$DEPLOY_PAT" ]; then
+            echo "ERROR: DEPLOY_PAT secret is not set. Create a PAT with 'repo' scope and add it as the DEPLOY_PAT secret." >&2
+            exit 1
+          fi
+
+      - name: Deploy to gh-pages on target repo
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.DEPLOY_PAT }}
           publish_dir: ./dist
+          publish_branch: gh-pages
+          publish_repo: nandi-2006/endsemlab_33770
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
