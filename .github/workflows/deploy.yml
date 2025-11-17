@@ -1,0 +1,53 @@
+name: Build and Deploy to gh-pages
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to gh-pages
+        env:
+          DEPLOY_PAT: ${{ secrets.DEPLOY_PAT }}
+        run: |
+          # Configure git and push the contents of dist/ to gh-pages branch of the target repo
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create a temporary repo clone of the gh-pages branch
+          TARGET_REPO="https://x-access-token:${DEPLOY_PAT}@github.com/nandi-2006/endsemlab_33770.git"
+          tmp_dir=$(mktemp -d)
+          git clone --branch gh-pages --single-branch "$TARGET_REPO" "$tmp_dir" || (
+            # If gh-pages doesn't exist yet, init an orphan branch
+            git clone "$TARGET_REPO" "$tmp_dir" || true
+            mkdir -p "$tmp_dir"
+            cd "$tmp_dir"
+            git init
+            git checkout --orphan gh-pages
+          )
+
+          # Copy build output
+          rm -rf "$tmp_dir"/* || true
+          cp -r ./dist/. "$tmp_dir"/
+
+          cd "$tmp_dir"
+          git add --all
+          git commit -m "Deploy site from ${GITHUB_SHA} [skip ci]" || true
+          git push "$TARGET_REPO" gh-pages --force
